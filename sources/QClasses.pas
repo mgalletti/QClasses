@@ -74,8 +74,7 @@ type
     function GetFieldByIndex(const AIndex: Integer): TQFieldDef;
     function GetFieldByName(const AFieldName: String): TQFieldDef;
     function GetFieldCount: Integer;
-    function GetFields(const AFieldName: string;
-      const AAggregation: TQAggregationFunctionType=aftNone): TQFieldDef;
+    function GetFields(const AFieldName: string; const AAggregation: TQAggregationFunctionType=aftNone): TQFieldDef; overload;
     function GetAvg(const AFieldName: string): TQFieldDef;
     function GetCount(const AFieldName: string): TQFieldDef;
     function GetMax(const AFieldName: string): TQFieldDef;
@@ -264,7 +263,7 @@ var
   LField: TQOrderByFieldDef;
 begin
   for LField in AFields do
-    Result := Result + ','+LField.FieldDef.FullName+' '+GetFieldOrderQString(LField.OrderDirection);
+    Result := Result + ','+LField.GetFieldName;
   if Result<>'' then
   begin
     Delete(Result, 1, 1);
@@ -559,6 +558,7 @@ begin
         LFieldDef.DataType := LDataSet.Fields[I].DataType;
         LFieldDef.RefTable := LTableDef;
         LFieldDef.AggregationFunction := aftNone;
+        LFieldDef.DatetimeFunction := dftNone;
         TQTable(Result).FFields.Add(LFieldDef);
       end;
     end;
@@ -642,15 +642,7 @@ begin
     LComparison.Format(AField, AValue, AOperator);
     Result := Result.XCondition(TQLogicalOperator(-1), LComparison);
   end;
-  //LCond.Format(AField, AValue, AOperator);
-  //Result := '';
-  //Result := Result.XCondition(TQLogicalOperator(-1), LCond);
 end;
-
-//function Condition(const AField: TQFieldDef; const AOperator: TQComparisonOperator; const AParamName: string): QStringWhere; overload;
-//begin
-//  Result := Result.XCondition(TQLogicalOperator(-1), AField, AOperator, AParamName);
-//end;
 
 function Condition(const ACondition: QStringWhere): QStringWhere; overload;
 begin
@@ -790,7 +782,7 @@ begin
   if LFieldList<>'' then
   begin
     Delete(LFieldList, 1, 1);
-    Result := Format('SELECT %s %s %s FROM %s ',
+    Result := Format('SELECT %s %s %s '+#13#10+'FROM %s ',
       [GetSelectArgumentDescr(AArgument), GetSelectTopExpressionDescr(ATop, ATopCount),
       LFieldList, FTableDef.FullName]);
   end;

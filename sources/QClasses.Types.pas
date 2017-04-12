@@ -9,12 +9,36 @@ const
   Q_DEFAULT_SCHEMA = 'dbo';
 
 type
-  TQJoinType = (qjtInner, qjtLeftOuter, qjtRightOuter);
-  TQFieldOrderDirection = (fodNone, fodASC, fodDESC);
-  TQSelectArgument = (saNone, saAll, saDistinct);
-  TQSelectTopExpression = (steTop, stePercent, steWithTies);
+  TQJoinType = (
+    qjtInner,
+    qjtLeftOuter,
+    qjtRightOuter
+  );
+
+  TQFieldOrderDirection = (
+    fodNone,
+    fodASC,
+    fodDESC
+  );
+
+  TQSelectArgument = (
+    saNone,
+    saAll,
+    saDistinct
+  );
+
+  TQSelectTopExpression = (
+    steTop,
+    stePercent,
+    steWithTies
+  );
   TQSelectTop = set of TQSelectTopExpression;
-  TQLogicalOperator = (loAND, loOR, loIN);
+
+  TQLogicalOperator = (
+    loAND,
+    loOR,
+    loIN
+  );
 
   TQAggregationFunctionType = (
     aftNone,
@@ -23,6 +47,13 @@ type
     aftMax,
     aftMin,
     aftAvg
+  );
+
+  TQDatetimeFunctionType = (
+    dftNone,
+    dftYear,
+    dftMonth,
+    dftDay
   );
 
   TQComparisonOperator = (
@@ -66,17 +97,26 @@ type
   PQTableDef = ^TQTableDef;
 
   TQFieldDef = record
+  private
+    function ApplyFunction(const AFieldName, AFunc: string): string; overload;
+    function ApplyFunction(const AFieldName: string; const AFuncType: TQAggregationFunctionType): string; overload;
+    function ApplyFunction(const AFieldName: string; const AFuncType: TQDatetimeFunctionType): string; overload;
+  public
     FieldName: string;
     FieldAlias: string;
     DataType: TFieldType;
     RefTable: TQTableDef;
     AggregationFunction: TQAggregationFunctionType;
+    DatetimeFunction: TQDatetimeFunctionType;
     class operator Add(a, b: TQFieldDef): TQFieldDef;      // Addition of two operands
     class operator Subtract(a, b: TQFieldDef): TQFieldDef; // Subtraction
     function Empty: TQFieldDef;
     function FullName: string;
     function SelectFieldName: string;
     function AsAlias(const AFieldAlias: string): TQFieldDef;
+    function Year: TQFieldDef;
+    function Month: TQFieldDef;
+    function Day: TQFieldDef;
   end;
 
   TQFieldsComparison = record
@@ -99,6 +139,7 @@ type
     FieldDef: TQFieldDef;
     OrderDirection: TQFieldOrderDirection;
     procedure Format(const AFieldDef: TQFieldDef; const AOrderDirection: TQFieldOrderDirection);
+    function GetFieldName: string;
   end;
 
   TQOrderByIndexDef = record
@@ -128,10 +169,34 @@ begin
     raise EArgumentException.Create('Fields must be of same datatype');
 end;
 
+function TQFieldDef.ApplyFunction(const AFieldName, AFunc: string): string;
+begin
+  if AFunc<>'' then
+    Result := Format('%s(%s)', [AFunc, AFieldName])
+  else
+    Result := AFieldName;
+end;
+
+function TQFieldDef.ApplyFunction(const AFieldName: string; const AFuncType: TQAggregationFunctionType): string;
+begin
+  Result := ApplyFunction(AFieldName, GetFieldAggregationDescr(AFuncType));
+end;
+
+function TQFieldDef.ApplyFunction(const AFieldName: string; const AFuncType: TQDatetimeFunctionType): string;
+begin
+  Result := ApplyFunction(AFieldName, GetFieldDatetimeFunctionDescr(AFuncType));
+end;
+
 function TQFieldDef.AsAlias(const AFieldAlias: string): TQFieldDef;
 begin
   Result := Self;
   Result.FieldAlias := AFieldAlias;
+end;
+
+function TQFieldDef.Day: TQFieldDef;
+begin
+  Result := Self;
+  Result.DatetimeFunction := dftDay;
 end;
 
 function TQFieldDef.Empty: TQFieldDef;
@@ -150,16 +215,19 @@ begin
   else
     Result := '';
   Result := Result + FieldName;
+  Result := ApplyFunction(Result, DatetimeFunction);
+end;
+
+function TQFieldDef.Month: TQFieldDef;
+begin
+  Result := Self;
+  Result.DatetimeFunction := dftMonth;
 end;
 
 function TQFieldDef.SelectFieldName: string;
-var
-  LFunc: string;
 begin
-  Result := FullName;
-  LFunc := GetFieldAggregationDescr(AggregationFunction);
-  if LFunc<>'' then
-    Result := Format('%s(%s)', [LFunc, Result]);
+  //Result := ApplyFunction(FullName, DatetimeFunction);
+  Result := ApplyFunction(FullName, AggregationFunction);
   if FieldAlias<>'' then
     Result := Result + ' AS ' + FieldAlias;
 end;
@@ -176,6 +244,12 @@ begin
   end
   else
     raise EArgumentException.Create('Fields must be of same datatype');
+end;
+
+function TQFieldDef.Year: TQFieldDef;
+begin
+  Result := Self;
+  Result.DatetimeFunction := dftYear;
 end;
 
 { TQTableDef }
@@ -235,6 +309,14 @@ procedure TQOrderByFieldDef.Format(const AFieldDef: TQFieldDef; const AOrderDire
 begin
   Self.FieldDef := AFieldDef;
   Self.OrderDirection := AOrderDirection;
+end;
+
+function TQOrderByFieldDef.GetFieldName: string;
+begin
+  if Self.FieldDef.DatetimeFunction > dftNone then
+    Result := Self.FieldDef.FullName+' '+GetFieldOrderQString(OrderDirection)
+  else
+    Result := Self.FieldDef.FieldAlias+' '+GetFieldOrderQString(OrderDirection);
 end;
 
 { TQOrderByIndexDef }

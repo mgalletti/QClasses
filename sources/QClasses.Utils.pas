@@ -15,6 +15,7 @@ function GetCompareFieldsString(const AOperator: TQComparisonOperator; const AFi
 
 function GetFieldOrderQString(const AValue: TQFieldOrderDirection): QString;
 function GetFieldAggregationDescr(const AValue: TQAggregationFunctionType): QString;
+function GetFieldDatetimeFunctionDescr(const AValue: TQDatetimeFunctionType): QString;
 function GetLogicalOperatorDescr(const AValue: TQLogicalOperator): string;
 function GetSelectArgumentDescr(const AValue: TQSelectArgument): string;
 function GetSelectTopExpressionDescr(const ATopSet: TQSelectTop; const ACount: Cardinal): string;
@@ -32,6 +33,8 @@ begin
     Result := QuoteSQLStr(VarToStr(AValue))
   else if VarIsFloat(AValue) then
     Result := FloatToStr(AValue)
+  else if VarIsType(AValue, varDate) then
+    Result := QuoteSQLStr(FormatDatetime('yyyymmdd hh:nn:ss', VarToDateTime(AValue)))
   else
     Result := VarToStr(AValue);
 end;
@@ -41,7 +44,7 @@ begin
   if AValue.Trim.IsEmpty then
     Result := SQL_NULL
   else
-    Result := QuotedStr(AValue.Trim)
+    Result := 'N'+QuotedStr(AValue.Trim);
 end;
 
 function QuoteSQLKey(const AValue: Integer): string;
@@ -50,6 +53,7 @@ begin
     Result := SQL_NULL
   else
     Result := QuoteSQLValue(AValue);
+  Result := 'N'+Result;
 end;
 
 function GetCompareValueString(const AOperator: TQComparisonOperator; const AFieldName: string;
@@ -130,6 +134,16 @@ begin
     aftMin: Result := 'MIN';
     aftAvg: Result := 'AVG';
     else Result := '';
+  end;
+end;
+
+function GetFieldDatetimeFunctionDescr(const AValue: TQDatetimeFunctionType): QString;
+begin
+  case AValue of
+    dftYear: Result := 'YEAR';
+    dftMonth: Result := 'MONTH';
+    dftDay: Result := 'DAY';
+    else result := '';
   end;
 end;
 
